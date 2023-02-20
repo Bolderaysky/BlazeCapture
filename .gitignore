@@ -30,3 +30,10 @@
 *.exe
 *.out
 *.app
+
+# Output
+build
+
+# vscode cache
+.cache
+.vscode
