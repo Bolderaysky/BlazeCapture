@@ -146,6 +146,8 @@ namespace blaze::internal {
     }
 
     NvfbcCapture::~NvfbcCapture() {
+
+        delete buffer;
     }
 
     void NvfbcCapture::startCapture() {
@@ -156,6 +158,8 @@ namespace blaze::internal {
                        -1);
 
         isScreenCaptured.store(true);
+
+        constexpr auto sleepTime = 1'000'000u / 30u;
 
         CUdeviceptr cuDevicePtr;
         std::uint32_t lastByteSize = 0;
@@ -171,7 +175,7 @@ namespace blaze::internal {
 
         grabParams.dwVersion = NVFBC_TOCUDA_GRAB_FRAME_PARAMS_VER;
 
-        grabParams.dwFlags = NVFBC_TOCUDA_GRAB_FLAGS_NOWAIT;
+        grabParams.dwFlags = NVFBC_TOCUDA_GRAB_FLAGS_NOWAIT_IF_NEW_FRAME_READY;
 
         grabParams.pFrameGrabInfo = &frameInfo;
 
@@ -197,7 +201,7 @@ namespace blaze::internal {
 
             newFrameHandler(buffer, frameInfo.dwByteSize);
 
-            // usleep(sleepTime);
+            usleep(sleepTime);
         }
     }
 
