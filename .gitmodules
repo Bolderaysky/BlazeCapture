@@ -1,3 +1,6 @@
 [submodule "dependencies/imgui"]
 	path = dependencies/imgui
 	url = https://github.com/ocornut/imgui.git
+[submodule "dependencies/thread-pool"]
+	path = dependencies/thread-pool
+	url = https://github.com/bshoshany/thread-pool
