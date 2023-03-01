@@ -2,19 +2,12 @@
 
 #include <ctime>
 #include <xcb/present.h>
+#include <xcb/shm.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_image.h>
-#include <xcb/dri3.h>
 
 #include <memory>
 #include <xcb/xproto.h>
-
-extern "C" {
-#include <libavcodec/avcodec.h>
-#include <libavutil/opt.h>
-#include <libavutil/imgutils.h>
-#include <libswscale/swscale.h>
-}
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -22,6 +15,10 @@ extern "C" {
 #include <iostream>
 
 #include "BS_thread_pool.hpp"
+
+#include <sys/shm.h>
+
+#include <libyuv/convert.h>
 
 namespace blaze::internal {
 
@@ -75,6 +72,13 @@ namespace blaze::internal {
             scHeight = screen->height_in_pixels;
         }
 
+        seg = xcb_generate_id(conn);
+        shmid = shmget(IPC_PRIVATE, scWidth * scHeight * 4, IPC_CREAT | 0777);
+
+        if (shmid == -1) errHandler("Cannot allocate shared memory", -1);
+
+        xcb_shm_attach(conn, seg, shmid, false);
+
         isInitialized = true;
     }
 
@@ -87,57 +91,61 @@ namespace blaze::internal {
 
         isScreenCaptured.store(true);
 
-        constexpr float ms = 1'000.0f;
-        const float timeBetweenFrames = ms / refreshRate;
-        std::uint16_t sleepTime = 0u;
+        constexpr std::uint16_t ms = 1'000.0f;
+        const std::uint16_t timeBetweenFrames = ms / refreshRate;
+        std::uint16_t execTime = 0u;
 
-        std::size_t before, after;
+        std::clock_t before, after;
 
-        /*BS::thread_pool pool;
+        std::uint8_t *buffer = static_cast<std::uint8_t *>(
+            shmat(shmid, nullptr, 0));
 
-        std::atomic<std::uint16_t> fps = 0u;
+        xcb_shm_get_image_cookie_t cookie;
 
-        pool.push_task([&]() {
-            while (true) {
+        std::uint32_t yuv420bufLength = (scWidth * scHeight * 3u) / 2u;
 
-                sleep(1);
-                std::cout << fps.load() << " fps\n";
-                fps.store(0u);
-            }
-        });*/
+        std::uint8_t *yuv420buffer = static_cast<std::uint8_t *>(
+            malloc(yuv420bufLength));
 
         while (isScreenCaptured.load()) {
 
             before = clock();
 
-            std::shared_ptr<xcb_get_image_reply_t> image(xcb_get_image_reply(
-                conn,
-                xcb_get_image_unchecked(conn, XCB_IMAGE_FORMAT_Z_PIXMAP,
-                                        screen->root, 0, 0, scWidth, scHeight,
-                                        ~0),
-                nullptr));
+            cookie = xcb_shm_get_image_unchecked(
+                conn, screen->root, 0, 0, scWidth, scHeight, ~0,
+                XCB_IMAGE_FORMAT_Z_PIXMAP, seg, 0);
 
-            const auto frame = xcb_get_image_data(image.get());
-            const auto &length = xcb_get_image_data_length(image.get());
+            free(xcb_shm_get_image_reply(conn, cookie, nullptr));
 
-            newFrameHandler(static_cast<void *>(frame), length);
+            libyuv::ARGBToI420(buffer, scWidth * 4u, yuv420buffer, scWidth,
+                               yuv420buffer + scWidth * scHeight, scWidth / 2u,
+                               yuv420buffer + scWidth * scHeight +
+                                   (scWidth * scHeight) / 4u,
+                               scWidth / 2u, scWidth, scHeight);
 
-            // fps.store(fps.load() + 1);
+
+            newFrameHandler(yuv420buffer, yuv420bufLength);
 
             after = clock();
 
-            sleepTime = timeBetweenFrames -
-                        (float(after - before) / CLOCKS_PER_SEC) * 1'000.0f;
+            execTime = (after - before) / 1'000;
 
-            // std::cout << sleepTime << '\n';
-
-            if (sleepTime < timeBetweenFrames) usleep(sleepTime * 1'000);
+            if (execTime < timeBetweenFrames)
+                usleep((timeBetweenFrames - execTime) * 1'000);
         }
+
+        free(yuv420buffer);
+        shmdt(buffer);
     }
 
     void X11Capture::stopCapture() {
 
         isScreenCaptured.store(false);
+    }
+
+    void X11Capture::setBufferFormat(blaze::format type) {
+
+        format = type;
     }
 
 
