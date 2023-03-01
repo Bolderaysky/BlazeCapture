@@ -4,3 +4,9 @@
 [submodule "dependencies/thread-pool"]
 	path = dependencies/thread-pool
 	url = https://github.com/bshoshany/thread-pool
+[submodule "dependencies/hopscotch-map"]
+	path = dependencies/hopscotch-map
+	url = https://github.com/Tessil/hopscotch-map
+[submodule "dependencies/libdatachannel"]
+	path = dependencies/libdatachannel
+	url = https://github.com/paullouisageneau/libdatachannel
