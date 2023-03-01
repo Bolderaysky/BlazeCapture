@@ -1,4 +1,4 @@
-#include "blaze/capture/nvidia.hpp"
+#include "blaze/capture/linux/nvidia.hpp"
 
 #include <cerrno>
 #include <iostream>
@@ -317,7 +317,7 @@ namespace blaze::internal {
         NV_ENC_MAP_INPUT_RESOURCE mapParams;
         NV_ENC_LOCK_BITSTREAM lockParams;
 
-        NV_ENC_INPUT_PTR inputBuffer = NULL;
+        NV_ENC_INPUT_PTR inputBuffer = nullptr;
 
         int bufferSize = 0;
 
