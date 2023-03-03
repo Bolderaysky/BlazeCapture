@@ -17,12 +17,18 @@ namespace blaze::internal {
 
     class X11Capture {
 
+            struct X11Window {
+
+                    xcb_window_t window;
+                    std::shared_ptr<xcb_get_geometry_reply_t> geometry;
+            };
+
         protected:
             std::function<void(const char *, std::int32_t)> errHandler;
             std::function<void(void *, std::uint64_t)> newFrameHandler;
             std::uint16_t refreshRate = 60u;
 
-            std::shared_ptr<xcb_randr_get_crtc_info_reply_t> selectedCrtc;
+            X11Window selectedWindow;
             std::uint16_t dstWidth, dstHeight;
 
             std::atomic<bool> isScreenCaptured = false;
@@ -37,9 +43,9 @@ namespace blaze::internal {
 
             blaze::format format = yuv420p;
 
-            tsl::bhopscotch_map<
-                const char *, std::shared_ptr<xcb_randr_get_crtc_info_reply_t>>
-                windows;
+            tsl::bhopscotch_map<const char *, X11Window> screens;
+
+            bool isLoaded = false;
 
         public:
             X11Capture();
@@ -55,8 +61,9 @@ namespace blaze::internal {
             void
                 onNewFrame(std::function<void(void *, std::uint64_t)> callback);
 
-            void selectWindow(const char *window);
-            std::vector<const char *> listWindows();
+            void updateScreenList();
+            void selectScreen(const char *screen);
+            std::vector<const char *> listScreen();
 
 
             void setBufferFormat(blaze::format type);
