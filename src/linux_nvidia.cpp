@@ -1,5 +1,6 @@
 #include "blaze/capture/linux/nvidia.hpp"
 
+#include <X11/Xlib.h>
 #include <cerrno>
 #include <iostream>
 #include <cstring>
@@ -68,50 +69,26 @@ namespace blaze::internal {
 
     void NvfbcCapture::load() {
 
-        PNVFBCCREATEINSTANCE NvFBCCreateInstance_ptr = NULL;
-        PFNNVENCODEAPICREATEINSTANCEPROC NvEncodeAPICreateInstance = NULL;
+        PNVFBCCREATEINSTANCE NvFBCCreateInstance_ptr = nullptr;
+        PFNNVENCODEAPICREATEINSTANCEPROC NvEncodeAPICreateInstance = nullptr;
 
-        NVFBC_CREATE_HANDLE_PARAMS createHandleParams;
-
-        Display *dpy = None;
-        Pixmap pixmap = None;
-        GLXPixmap glxPixmap = None;
-        GLXFBConfig *fbConfigs;
-        Bool res;
-        int n;
-
-        int attribs[] = {GLX_DRAWABLE_TYPE,
-                         GLX_PIXMAP_BIT | GLX_WINDOW_BIT,
-                         GLX_BIND_TO_TEXTURE_RGBA_EXT,
-                         1,
-                         GLX_BIND_TO_TEXTURE_TARGETS_EXT,
-                         GLX_TEXTURE_2D_BIT_EXT,
-                         None};
-
-        dpy = XOpenDisplay(NULL);
+        dpy = XOpenDisplay(nullptr);
         if (dpy == None) errHandler("Unable to open display", -1);
 
-        fbConfigs = glXChooseFBConfig(dpy, DefaultScreen(dpy), attribs, &n);
-        if (!fbConfigs) errHandler("Unable to find FB configs", -1);
+        const auto &screenCount = ScreenCount(dpy);
 
-        glxCtx = glXCreateNewContext(dpy, fbConfigs[0], GLX_RGBA_TYPE, None,
-                                     True);
-        if (glxCtx == None) errHandler("Unable to create GL context", -1);
+        for (std::uint16_t i = 0; i < screenCount; ++i) {
 
-        pixmap = XCreatePixmap(dpy, XDefaultRootWindow(dpy), 1, 1,
-                               DisplayPlanes(dpy, XDefaultScreen(dpy)));
+            struct NvfbcScreen scr;
+            scr.screenNum = i;
+            scr.scr = ScreenOfDisplay(dpy, i);
 
-        if (pixmap == None) errHandler("Unable to create pixmap", -1);
-
-        glxPixmap = glXCreatePixmap(dpy, fbConfigs[0], pixmap, NULL);
-        if (glxPixmap == None) errHandler("Unable to create GLX pixmap", -1);
-
-        res = glXMakeCurrent(dpy, glxPixmap, glxCtx);
-        if (!res) errHandler("Unable to make context current", -1);
-
-        glxFBConfig = fbConfigs[0];
-
-        XFree(fbConfigs);
+            screens.emplace(("screen-" + std::to_string(i)).c_str(), scr);
+        }
+        if (screens.size() > 0 && selectedScreen.scr == nullptr)
+            selectedScreen = screens.begin()->second;
+        else if (screens.size() == 0)
+            errHandler("Cannot find connected monitor", -1);
 
         libNVFBC = dlopen(LIB_NVFBC_NAME, RTLD_NOW);
         if (libNVFBC == NULL)
@@ -147,6 +124,69 @@ namespace blaze::internal {
         encStatus = NvEncodeAPICreateInstance(&pEncFn);
         if (encStatus != NV_ENC_SUCCESS)
             errHandler("Unable to create NvEncodeAPI instance", encStatus);
+
+        isInitialized = true;
+    }
+
+    NvfbcCapture::NvfbcCapture() {
+    }
+
+    NvfbcCapture::~NvfbcCapture() {
+
+        if (dpy != None) XCloseDisplay(dpy);
+
+        if (libNVFBC != nullptr) dlclose(libNVFBC);
+        if (libEnc != nullptr) dlclose(libEnc);
+    }
+
+    void NvfbcCapture::startCapture() {
+
+        if (!isInitialized)
+            errHandler("NvfbcCapture::load() were not called or was executed "
+                       "with errors",
+                       -1);
+
+
+        // ------------------------------------
+
+        Pixmap pixmap = None;
+        GLXPixmap glxPixmap = None;
+        GLXFBConfig *fbConfigs;
+        Bool res;
+        int n;
+
+        int attribs[] = {GLX_DRAWABLE_TYPE,
+                         GLX_PIXMAP_BIT | GLX_WINDOW_BIT,
+                         GLX_BIND_TO_TEXTURE_RGBA_EXT,
+                         1,
+                         GLX_BIND_TO_TEXTURE_TARGETS_EXT,
+                         GLX_TEXTURE_2D_BIT_EXT,
+                         None};
+
+        fbConfigs = glXChooseFBConfig(dpy, selectedScreen.screenNum, attribs,
+                                      &n);
+        if (!fbConfigs) errHandler("Unable to find FB configs", -1);
+
+        glxCtx = glXCreateNewContext(dpy, fbConfigs[0], GLX_RGBA_TYPE, None,
+                                     True);
+        if (glxCtx == None) errHandler("Unable to create GL context", -1);
+
+        pixmap = XCreatePixmap(dpy, XRootWindow(dpy, selectedScreen.screenNum),
+                               1, 1, selectedScreen.scr->root_depth);
+
+        if (pixmap == None) errHandler("Unable to create pixmap", -1);
+
+        glxPixmap = glXCreatePixmap(dpy, fbConfigs[0], pixmap, NULL);
+        if (glxPixmap == None) errHandler("Unable to create GLX pixmap", -1);
+
+        res = glXMakeCurrent(dpy, glxPixmap, glxCtx);
+        if (!res) errHandler("Unable to make context current", -1);
+
+        glxFBConfig = fbConfigs[0];
+
+        XFree(fbConfigs);
+
+        NVFBC_CREATE_HANDLE_PARAMS createHandleParams;
 
         memset(&createHandleParams, 0, sizeof(createHandleParams));
 
@@ -190,7 +230,7 @@ namespace blaze::internal {
         createCaptureParams.bWithCursor = NVFBC_TRUE;
         createCaptureParams.frameSize = frameSize;
         createCaptureParams.eTrackingType = NVFBC_TRACKING_DEFAULT;
-        createCaptureParams.bDisableAutoModesetRecovery = NVFBC_TRUE;
+        createCaptureParams.bDisableAutoModesetRecovery = NVFBC_FALSE;
 
         fbcStatus = pFn.nvFBCCreateCaptureSession(fbcHandle,
                                                   &createCaptureParams);
@@ -241,8 +281,8 @@ namespace blaze::internal {
         if (encStatus != NV_ENC_SUCCESS)
             errHandler("Failed to obtain preset settings", encStatus);
 
-        presetConfig.presetCfg.rcParams.averageBitRate = 5 * 1024 * 1024;
-        presetConfig.presetCfg.rcParams.maxBitRate = 8 * 1024 * 1024;
+        presetConfig.presetCfg.rcParams.averageBitRate = 24 * 1024 * 1024;
+        presetConfig.presetCfg.rcParams.maxBitRate = 36 * 1024 * 1024;
         presetConfig.presetCfg.rcParams.vbvBufferSize =
             87382; /* single frame */
 
@@ -295,23 +335,8 @@ namespace blaze::internal {
 
             registeredResources[i] = registerParams.registeredResource;
         }
+        //-------------------------------------
 
-
-        isInitialized = true;
-    }
-
-    NvfbcCapture::NvfbcCapture() {
-    }
-
-    NvfbcCapture::~NvfbcCapture() {
-    }
-
-    void NvfbcCapture::startCapture() {
-
-        if (!isInitialized)
-            errHandler("NvfbcCapture::load() were not called or was executed "
-                       "with errors",
-                       -1);
 
         NV_ENC_CREATE_BITSTREAM_BUFFER bitstreamBufferParams;
         NV_ENC_MAP_INPUT_RESOURCE mapParams;
@@ -360,7 +385,9 @@ namespace blaze::internal {
 
         isScreenCaptured.store(true);
 
-        while (isScreenCaptured) {
+        isScreenCapturingStopped.store(false);
+
+        while (isScreenCaptured.load()) {
             NVFBC_TOGL_GRAB_FRAME_PARAMS grabParams;
 
             memset(&grabParams, 0, sizeof(grabParams));
@@ -428,6 +455,8 @@ namespace blaze::internal {
             if (bufferSize == 0)
                 errHandler("Failed to obtain the bitstream", -1);
         }
+
+        isScreenCapturingStopped.store(true);
     }
 
     void NvfbcCapture::onErrorCallback(
@@ -458,12 +487,14 @@ namespace blaze::internal {
 
         isScreenCaptured.store(false);
 
+        while (!isScreenCapturingStopped.load()) usleep(500u);
+
         this->clear();
     }
 
     void NvfbcCapture::clear() {
 
-        NVFBC_DESTROY_HANDLE_PARAMS destroyHandleParams;
+        /*NVFBC_DESTROY_HANDLE_PARAMS destroyHandleParams;
         NVFBC_DESTROY_CAPTURE_SESSION_PARAMS destroyCaptureParams;
 
         memset(&encParams, 0, sizeof(encParams));
@@ -507,9 +538,9 @@ namespace blaze::internal {
         if (fbcStatus != NVFBC_SUCCESS)
             errHandler(pFn.nvFBCGetLastErrorStr(fbcHandle), -1);
 
-        /*
-         * Destroy session handle, tear down more resources.
-         */
+
+         // Destroy session handle, tear down more resources.
+
         memset(&destroyHandleParams, 0, sizeof(destroyHandleParams));
 
         destroyHandleParams.dwVersion = NVFBC_DESTROY_HANDLE_PARAMS_VER;
@@ -517,6 +548,7 @@ namespace blaze::internal {
         fbcStatus = pFn.nvFBCDestroyHandle(fbcHandle, &destroyHandleParams);
         if (fbcStatus != NVFBC_SUCCESS)
             errHandler(pFn.nvFBCGetLastErrorStr(fbcHandle), -1);
+        */
     }
 
     void NvfbcCapture::setBufferFormat(blaze::format type) {
@@ -545,6 +577,45 @@ namespace blaze::internal {
                 bufferFormat = NVFBC_BUFFER_FORMAT_YUV444P;
                 break;
         }
+    }
+
+    void NvfbcCapture::selectScreen(const char *screen) {
+
+        auto it = screens.find(screen);
+        if (it != screens.end()) selectedScreen = screens.at(screen);
+        else errHandler("Selected screen does not exist", -1);
+    }
+    std::vector<const char *> NvfbcCapture::listScreen() {
+
+        if (dpy == None && screens.size() == 0) {
+
+            dpy = XOpenDisplay(nullptr);
+            if (dpy == None) errHandler("Unable to open display", -1);
+
+            const auto &screenCount = ScreenCount(dpy);
+
+            for (std::uint16_t i = 0; i < screenCount; ++i) {
+
+                struct NvfbcScreen scr;
+                scr.screenNum = i;
+                scr.scr = ScreenOfDisplay(dpy, i);
+
+                screens.emplace(("screen-" + std::to_string(i)).c_str(), scr);
+            }
+            if (screens.size() > 0 && selectedScreen.scr == nullptr)
+                selectedScreen = screens.begin()->second;
+            else if (screens.size() == 0)
+                errHandler("Cannot find connected monitor", -1);
+
+            XCloseDisplay(dpy);
+            dpy = None;
+        }
+
+        std::vector<const char *> vec(screens.size());
+
+        for (const auto &[key, val] : screens) vec.emplace_back(key);
+
+        return vec;
     }
 
 }; // namespace blaze::internal

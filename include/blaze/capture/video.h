@@ -28,6 +28,7 @@ void video_capture_set_resolution(struct VideoCapture *instance,
                                   unsigned short width, unsigned short height);
 
 const char **video_capture_list_screen(struct VideoCapture *instance);
+void video_capture_update_screen_list(struct VideoCapture *instance);
 void video_capture_select_screen(struct VideoCapture *instance,
                                  const char *screen);
 };

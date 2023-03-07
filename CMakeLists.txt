@@ -43,7 +43,7 @@ endif()
 
 if (UNIX)
         if (CMAKE_BUILD_TYPE STREQUAL "Release")
-        add_compile_options(-Ofast -fno-exceptions)
+        add_compile_options(-Ofast -fno-exceptions -fno-rtti -fpermissive)
         endif()
 endif()
 
@@ -69,12 +69,16 @@ add_library(imgui STATIC
     $CACHE{IMGUI_PATH}/imgui_widgets.cpp
     $CACHE{IMGUI_PATH}/backends/imgui_impl_glfw.cpp
     $CACHE{IMGUI_PATH}/backends/imgui_impl_vulkan.cpp
+    $CACHE{IMGUI_PATH}/backends/imgui_impl_opengl3.cpp
 )
 
 include_directories($CACHE{IMGUI_PATH})
 include_directories($CACHE{IMGUI_PATH}/backends)
 
 include_directories($CACHE{INCLUDE_PATH})
+
+include_directories(${PROJECT_SOURCE_DIR}/dependencies/thread-pool)
+include_directories(${PROJECT_SOURCE_DIR}/dependencies/hopscotch-map/include)
 
 add_subdirectory($CACHE{SOURCE_PATH})
 

@@ -17,18 +17,13 @@ namespace blaze::internal {
 
     class X11Capture {
 
-            struct X11Window {
-
-                    xcb_window_t window;
-                    std::shared_ptr<xcb_get_geometry_reply_t> geometry;
-            };
-
         protected:
             std::function<void(const char *, std::int32_t)> errHandler;
             std::function<void(void *, std::uint64_t)> newFrameHandler;
             std::uint16_t refreshRate = 60u;
 
-            X11Window selectedWindow;
+            std::shared_ptr<xcb_randr_get_crtc_info_reply_t> selectedCrtc =
+                nullptr;
             std::uint16_t dstWidth, dstHeight;
 
             std::atomic<bool> isScreenCaptured = false;
@@ -41,63 +36,50 @@ namespace blaze::internal {
             std::int32_t shmid;
             xcb_shm_seg_t seg;
 
-            blaze::format format = yuv420p;
-
-            tsl::bhopscotch_map<const char *, X11Window> screens;
-
-            bool isLoaded = false;
+            tsl::bhopscotch_map<
+                std::string, std::shared_ptr<xcb_randr_get_crtc_info_reply_t>>
+                screens;
 
         public:
             X11Capture();
             ~X11Capture();
 
+            // Initialize xcb connection and retrieve screen list. Must be
+            // called before startCapture()
             void load();
+
+            // Set frame rate of capturing. 0 means no limit
             void setRefreshRate(std::uint16_t fps);
+
+            // Set resolution. Frame capturing is done in native resolution and
+            // then scaled to provided resolution
             void setResolution(std::uint16_t width, std::uint16_t height);
+
+            // Start frame capturing. Function is blocking
             void startCapture();
+
+            // Stop frame capturing. Can be called from any thread
             void stopCapture();
+
+            // Provide callback which will be called on any error. Must be set
+            // as early as possible
             void onErrorCallback(
                 std::function<void(const char *, std::int32_t)> callback);
+
+            // Provide callback which will be called inside startCapture() when
+            // there will be frame
             void
                 onNewFrame(std::function<void(void *, std::uint64_t)> callback);
 
+            // Allow to select screen which will be captured
+            void selectScreen(const std::string &screen);
+
+            // Return list of all available screens
+            std::vector<std::string> listScreen();
+
+            // Update screen list. If there's no screen connected, calls
+            // user-provided error handler
             void updateScreenList();
-            void selectScreen(const char *screen);
-            std::vector<const char *> listScreen();
-
-
-            void setBufferFormat(blaze::format type);
     };
-
-    class WaylandCapture {
-
-        protected:
-            std::function<void(const char *, std::int32_t)> errHandler;
-            std::function<void(void *, std::uint64_t)> newFrameHandler;
-            std::uint16_t refreshRate = 60u;
-
-            std::uint16_t scWidth, scHeight;
-            std::uint16_t dstWidth, dstHeight;
-
-            std::atomic<bool> isScreenCaptured = false;
-            bool isInitialized = false;
-            bool isResolutionSet = false;
-
-        public:
-            WaylandCapture();
-            ~WaylandCapture();
-
-            void load();
-            void setRefreshRate(std::uint16_t fps);
-            void setResolution(std::uint16_t width, std::uint16_t height);
-            void startCapture();
-            void stopCapture();
-            void onErrorCallback(
-                std::function<void(const char *, std::int32_t)> callback);
-            void
-                onNewFrame(std::function<void(void *, std::uint64_t)> callback);
-            void setBufferFormat(blaze::format type);
-    };
-
 
 }; // namespace blaze::internal

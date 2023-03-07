@@ -11,28 +11,25 @@
 #include "nvEncodeAPI.h"
 #include "NvFBCUtils.h"
 
-namespace blaze {
+#include "blaze/capture/linux/misc.hpp"
 
-    enum format : std::uint8_t {
-
-        rgb,
-        rgba,
-        argb,
-        bgra,
-        yuv420p,
-        yuv444p,
-        nv12
-
-    };
-};
+#include "tsl/bhopscotch_map.h"
 
 namespace blaze::internal {
+
+    struct NvfbcScreen {
+
+            Screen *scr = None;
+            std::int32_t screenNum = 0;
+    };
 
     class NvfbcCapture {
 
         protected:
             void *libNVFBC = nullptr, *libEnc = nullptr;
             void *encoder = nullptr;
+
+            Display *dpy = None;
 
             NVFBC_API_FUNCTION_LIST pFn;
             NV_ENCODE_API_FUNCTION_LIST pEncFn;
@@ -58,11 +55,18 @@ namespace blaze::internal {
             NVFBC_SIZE frameSize = {0u, 0u};
 
             std::atomic<bool> isScreenCaptured = false;
+            std::atomic<bool> isScreenCapturingStopped = false;
             bool isInitialized = false;
+
+            tsl::bhopscotch_map<const char *, struct NvfbcScreen> screens;
+            struct NvfbcScreen selectedScreen;
 
         public:
             NvfbcCapture();
             ~NvfbcCapture();
+
+            void selectScreen(const char *screen);
+            std::vector<const char *> listScreen();
 
             void clear();
             void load();

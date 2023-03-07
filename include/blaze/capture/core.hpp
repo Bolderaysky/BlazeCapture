@@ -1,66 +1,49 @@
 #pragma once
 
-#include <cstdint>
+#include "blaze/capture/linux/nvidia.hpp"
+#include <memory>
+
+#define GL_SILENCE_DEPRECATION
+
+#include <GLFW/glfw3.h>
 
 #include "imgui.h"
-#include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 
-#define GLFW_INCLUDE_NONE
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-#include <vulkan/vulkan.h>
+#include "blaze/capture/video.hpp"
+#include "blaze/capture/audio.hpp"
 
 namespace blaze {
 
-    struct AppInfo {
+    enum LOG_STATUS {
 
-            const char* title;
-            std::uint32_t width;
-            std::uint32_t height;
+        INFO,
+        WARNING,
+        ERROR,
+        CRITICAL
+
     };
 
     class BlazeCapture {
 
         protected:
-            GLFWwindow* window;
-            ImGui_ImplVulkanH_Window* vulkanWindow;
+            GLFWwindow* window = nullptr;
+            internal::NvfbcCapture Capturer;
+            FILE* videoFile = nullptr;
 
-            VkAllocationCallbacks* g_Allocator = nullptr;
-            VkInstance g_Instance = nullptr;
-            VkPhysicalDevice g_PhysicalDevice = nullptr;
-            VkDevice g_Device = nullptr;
-            std::uint32_t g_QueueFamily = (std::uint32_t)-1;
-            VkQueue g_Queue = nullptr;
-            VkDebugReportCallbackEXT g_DebugReport = nullptr;
-            VkPipelineCache g_PipelineCache = nullptr;
-            VkDescriptorPool g_DescriptorPool = nullptr;
-
-            std::int32_t g_MinImageCount = 2;
-            bool g_SwapChainRebuild = false;
-
-            AppInfo Info;
+            bool isWindowHidden = false;
 
         public:
-            BlazeCapture(AppInfo app_info);
+            BlazeCapture();
             ~BlazeCapture();
+
             void run();
-            void runAsync();
 
         protected:
-            void setupVulkan(const char** extensions,
-                             std::uint32_t extensions_count);
-            void setupVulkanWindow(ImGui_ImplVulkanH_Window* wd,
-                                   VkSurfaceKHR surface, std::int32_t width,
-                                   std::int32_t height);
-            void cleanupVulkanWindow();
-            void cleanupVulkan();
-            void frameRender(ImGui_ImplVulkanH_Window* wd,
-                             ImDrawData* draw_data);
-            void framePresent(ImGui_ImplVulkanH_Window* wd);
-            static void checkVkResult(VkResult err);
-            static void glfwErrCallback(std::int32_t error,
-                                        const char* description);
+            void errHandler(const char* err, std::int32_t c);
+            void LOG(LOG_STATUS status, const char* msg, std::int32_t code = 0);
+            void setShortcuts();
     };
 
 }; // namespace blaze
