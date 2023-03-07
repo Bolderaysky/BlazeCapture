@@ -36,3 +36,5 @@ void audio_capture_set_desktop_sound_capturing(struct AudioCapture *instance,
 void audio_capture_start_capture(struct AudioCapture *instance);
 void audio_capture_stop_capture(struct AudioCapture *instance);
 };
+
+#endif
