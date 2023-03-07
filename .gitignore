@@ -4,7 +4,7 @@
 # Compiled Object files
 *.slo
 *.lo
-*.o
+# *.o
 *.obj
 
 # Precompiled Headers
@@ -31,8 +31,8 @@
 *.out
 *.app
 
-# Output
-build
+# Output ( commented for now as nvfbc-utils compilation in cmake is not ready yet )
+# build
 
 # vscode cache
 .cache
