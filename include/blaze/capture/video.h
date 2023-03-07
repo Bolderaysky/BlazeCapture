@@ -1,5 +1,5 @@
-#ifndef BLAZE_VIDEO
-#define BLAZE_VIDEO
+#ifndef BLAZE_VIDEO_H
+#define BLAZE_VIDEO_H
 
 extern "C" {
 
