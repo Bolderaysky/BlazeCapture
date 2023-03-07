@@ -16,8 +16,9 @@ namespace blaze {
 
     AudioCapture::~AudioCapture() {
 
-        pw_stream_destroy(data.micStream);
-        pw_stream_destroy(data.desktopSoundStream);
+        if (micCapture) pw_stream_destroy(data.micStream);
+        if (desktopSoundCapture) pw_stream_destroy(data.desktopSoundStream);
+
         pw_main_loop_destroy(data.loop);
         pw_deinit();
     }
