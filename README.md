@@ -1,4 +1,7 @@
 # BlazeCapture
+## NOT FOR PRODUCTION USE YET
+This is dirty and test project for now, so expect frequent changes of api, abi, things will be deleted a new added. For now, the most I can call this, is MVP.
+## About Project
 Welcome to the github page of **blazingly fast** screen recorder. It's screen and sound capturing overlay like `ShadowPlay` on Windows from Nvidia, but works on linux and not only on nvidia cards.
 ## What's done?
 - Support for capturing last N minutes
