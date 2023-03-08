@@ -1,6 +1,6 @@
 #pragma once
 
-#include "blaze/capture/linux/nvidia.hpp"
+#include "SQLiteCpp/Database.h"
 #include <memory>
 
 #define GL_SILENCE_DEPRECATION
@@ -25,14 +25,31 @@ namespace blaze {
 
     };
 
+    enum ACTION {
+
+        OPEN_APP,
+        CLOSE_APP,
+        RECORD
+
+    };
+
     class BlazeCapture {
 
         protected:
             GLFWwindow* window = nullptr;
-            internal::NvfbcCapture Capturer;
+
+            internal::NvfbcCapture videoCapturer;
+            AudioCapture audioCapturer;
+
             FILE* videoFile = nullptr;
+            FILE* audioFile = nullptr;
+            FILE* micFile = nullptr;
 
             bool isWindowHidden = false;
+            bool isMicCaptured = true;
+            bool isDesktopSoundCaptured = true;
+
+            std::unique_ptr<SQLite::Database> db;
 
         public:
             BlazeCapture();
@@ -43,6 +60,7 @@ namespace blaze {
         protected:
             void errHandler(const char* err, std::int32_t c);
             void LOG(LOG_STATUS status, const char* msg, std::int32_t code = 0);
+            void HISTORY(ACTION action, std::uint64_t s);
             void setShortcuts();
     };
 

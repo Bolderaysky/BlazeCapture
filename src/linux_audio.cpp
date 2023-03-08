@@ -1,6 +1,5 @@
 #include "blaze/capture/audio.hpp"
 #include "blaze/capture/linux/audio.hpp"
-#include "spa/param/audio/raw.h"
 
 namespace blaze {
 
@@ -266,6 +265,8 @@ namespace blaze {
     void AudioCapture::stopCapture() {
 
         pw_main_loop_quit(data.loop);
+        if (micCapture) pw_stream_disconnect(data.micStream);
+        if (desktopSoundCapture) pw_stream_disconnect(data.desktopSoundStream);
     }
 
 

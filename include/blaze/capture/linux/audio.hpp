@@ -3,9 +3,12 @@
 #include <cstdint>
 #include <functional>
 
-#include <spa/param/audio/format-utils.h>
+#pragma GCC diagnostic push
 
+#pragma GCC diagnostic ignored "-Wpedantic"
+#include <spa/param/audio/format-utils.h>
 #include <pipewire/pipewire.h>
+#pragma GCC diagnostic pop
 
 namespace blaze {
 

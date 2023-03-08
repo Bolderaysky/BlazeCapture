@@ -43,7 +43,7 @@ endif()
 
 if (UNIX)
         if (CMAKE_BUILD_TYPE STREQUAL "Release")
-        add_compile_options(-Ofast -fno-exceptions -fno-rtti -fpermissive)
+        add_compile_options(-Ofast -fno-rtti -fpermissive) # -fno-exceptions exceptions are enabled for sqlite3cpp
         endif()
 endif()
 
@@ -79,6 +79,9 @@ include_directories($CACHE{INCLUDE_PATH})
 
 include_directories(${PROJECT_SOURCE_DIR}/dependencies/thread-pool)
 include_directories(${PROJECT_SOURCE_DIR}/dependencies/hopscotch-map/include)
+
+add_git_submodule(${PROJECT_SOURCE_DIR}/dependencies/SQLiteCpp)
+include_directories(${PROJECT_SOURCE_DIR}/dependencies/SQLiteCpp/include)
 
 add_subdirectory($CACHE{SOURCE_PATH})
 
