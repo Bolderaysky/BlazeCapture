@@ -7,3 +7,6 @@
 [submodule "dependencies/hopscotch-map"]
 	path = dependencies/hopscotch-map
 	url = https://github.com/Tessil/hopscotch-map
+[submodule "dependencies/SQLiteCpp"]
+	path = dependencies/SQLiteCpp
+	url = https://github.com/SRombauts/SQLiteCpp
