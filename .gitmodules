@@ -10,3 +10,9 @@
 [submodule "dependencies/SQLiteCpp"]
 	path = dependencies/SQLiteCpp
 	url = https://github.com/SRombauts/SQLiteCpp
+[submodule "dependencies/BlazeFS"]
+	path = dependencies/BlazeFS
+	url = https://github.com/Bolderaysky/BlazeFS
+[submodule "dependencies/glaze"]
+	path = dependencies/glaze
+	url = https://github.com/stephenberry/glaze
