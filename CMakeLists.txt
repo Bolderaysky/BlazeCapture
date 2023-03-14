@@ -59,6 +59,15 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
         endif()
 endif()
 
+# --- --- --- --- --- --- --- --- PACK ASSETS INTO ASAR --- --- --- --- --- --- --- ---
+
+execute_process(
+
+        COMMAND python ${CMAKE_SOURCE_DIR}/pack_assets.py
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+
+)
+
 # --- --- --- --- --- --- --- --- INCLUDE, BUILD, LINK, ADD SUBDIRECTORIES --- --- --- --- --- --- --- ---
 
 add_library(imgui STATIC
@@ -82,6 +91,12 @@ include_directories(${PROJECT_SOURCE_DIR}/dependencies/hopscotch-map/include)
 
 add_git_submodule(${PROJECT_SOURCE_DIR}/dependencies/SQLiteCpp)
 include_directories(${PROJECT_SOURCE_DIR}/dependencies/SQLiteCpp/include)
+
+add_git_submodule(${PROJECT_SOURCE_DIR}/dependencies/BlazeFS)
+include_directories(${PROJECT_SOURCE_DIR}/dependencies/BlazeFS/include)
+
+add_git_submodule(${PROJECT_SOURCE_DIR}/dependencies/glaze)
+include_directories(${PROJECT_SOURCE_DIR}/dependencies/glaze/include)
 
 add_subdirectory($CACHE{SOURCE_PATH})
 
