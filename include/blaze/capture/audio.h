@@ -1,7 +1,9 @@
 #ifndef BLAZE_AUDIO_H
 #define BLAZE_AUDIO_H
 
+#ifdef _cplusplus
 extern "C" {
+#endif
 
 typedef void (*onErrorCallbackType)(const char *, long);
 typedef void (*onNewDataType)(void *, unsigned long);
@@ -35,6 +37,9 @@ void audio_capture_set_desktop_sound_capturing(struct AudioCapture *instance,
 
 void audio_capture_start_capture(struct AudioCapture *instance);
 void audio_capture_stop_capture(struct AudioCapture *instance);
+
+#ifdef _cplusplus
 };
+#endif
 
 #endif

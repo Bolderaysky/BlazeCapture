@@ -1,7 +1,9 @@
 #ifndef BLAZE_VIDEO_H
 #define BLAZE_VIDEO_H
 
+#ifdef _cplusplus
 extern "C" {
+#endif
 
 typedef void (*onErrorCallbackType)(const char *, long);
 typedef void (*onNewFrameType)(void *, unsigned long);
@@ -31,6 +33,9 @@ const char **video_capture_list_screen(struct VideoCapture *instance);
 void video_capture_update_screen_list(struct VideoCapture *instance);
 void video_capture_select_screen(struct VideoCapture *instance,
                                  const char *screen);
+
+#ifdef _cplusplus
 };
+#endif
 
 #endif
