@@ -4,6 +4,7 @@
 #include <ctime>
 #include <memory>
 #include <cmath>
+#include <chrono>
 
 #include <xcb/shm.h>
 #include <xcb/xcb.h>
@@ -19,6 +20,8 @@
 #include <libyuv/convert.h>
 
 #include "BS_thread_pool_light.hpp"
+
+#include <iostream>
 
 namespace blaze::internal {
 
@@ -183,14 +186,16 @@ namespace blaze::internal {
         std::uint8_t *buffer = static_cast<std::uint8_t *>(
             shmat(shmid, nullptr, 0));
 
-        std::uint8_t *yuv420buffer = static_cast<std::uint8_t *>(
-            malloc(yuv420bufLength));
-
+        std::uint8_t *yuv420buffer = nullptr;
         std::uint8_t *scaledBuf = nullptr;
+
         if (scale) {
 
-            scaledBuf = static_cast<std::uint8_t *>(malloc(scaledBufSize));
-        }
+            yuv420buffer = static_cast<std::uint8_t *>(
+                malloc(yuv420bufLength + scaledBufSize));
+            scaledBuf = yuv420buffer + yuv420bufLength;
+        } else
+            yuv420buffer = static_cast<std::uint8_t *>(malloc(yuv420bufLength));
 
 
         xcb_shm_get_image_cookie_t cookie;
@@ -203,8 +208,8 @@ namespace blaze::internal {
         pool.push_task([&]() {
             for (;;) {
 
-                sleep(1);
-                printf("%d fps\n", fps.load());
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                std::cout << '\r' << fps.load() << " fps" << std::flush;
                 fps.store(0u);
             }
         });
@@ -224,9 +229,6 @@ namespace blaze::internal {
 
         constexpr std::uint16_t ms = 1'000.0f;
         const std::uint16_t timeBetweenFrames = ms / refreshRate;
-        const std::clock_t ticksBetweenFrames = timeBetweenFrames * 1'000u;
-
-        std::clock_t before, after, execTime;
 
         void *end_buffer = nullptr;
         auto end_length = 0;
@@ -244,7 +246,7 @@ namespace blaze::internal {
 
         while (isScreenCaptured.load()) {
 
-            before = clock();
+            auto startTime = std::chrono::high_resolution_clock::now();
 
             cookie = xcb_shm_get_image_unchecked(
                 conn, screen->root, selectedCrtc->x, selectedCrtc->y,
@@ -253,7 +255,9 @@ namespace blaze::internal {
 
             free(xcb_shm_get_image_reply(conn, cookie, nullptr));
 
-            while (!isFrameHandled.load()) { usleep(500); }
+            while (!isFrameHandled.load()) {
+                std::this_thread::sleep_for(std::chrono::microseconds(500));
+            }
 
             libyuv::ARGBToI420(buffer, stride_argb, yuv420buffer,
                                selectedCrtc->width, yuv420_u, stride_u,
@@ -276,17 +280,18 @@ namespace blaze::internal {
                 isFrameHandled.store(true);
             });
 
-            after = clock();
+            auto elapsedTime =
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::high_resolution_clock::now() - startTime)
+                    .count();
 
-            execTime = after - before;
-
-            if (execTime < ticksBetweenFrames)
-                usleep(ticksBetweenFrames - execTime);
+            auto sleepTime = timeBetweenFrames - elapsedTime;
+            if (sleepTime > 0)
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(sleepTime));
 
             fps.store(fps.load() + 1u);
         }
-
-        if (scale) free(scaledBuf);
 
         free(yuv420buffer);
         shmdt(buffer);
