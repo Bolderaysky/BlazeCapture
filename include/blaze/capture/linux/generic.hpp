@@ -80,6 +80,13 @@ namespace blaze::internal {
             // Update screen list. If there's no screen connected, calls
             // user-provided error handler
             void updateScreenList();
+
+            // Check if backend is available for use
+            static bool isAvailable();
+
+            // Get value of backend. Available backend with the highest value
+            // will be choosed
+            static std::uint32_t value();
     };
 
 }; // namespace blaze::internal
