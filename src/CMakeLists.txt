@@ -14,6 +14,6 @@ add_library(BlazeCapture ${_SOURCES})
 target_link_libraries(BlazeCapture PUBLIC imgui vulkan glfw)
 
 add_executable(BlazeCaptureApp "app/main.cpp" ${CMAKE_BINARY_DIR}/NvFBCUtils.o)
-target_link_libraries(BlazeCaptureApp PRIVATE BlazeCapture ${PKG_PipeWire_LIBRARY_DIRS} X11 GLU GL pipewire-0.3 xcb xcb-image Xext xcb-shm yuv xcb-randr SQLiteCpp sqlite3)
+target_link_libraries(BlazeCaptureApp PRIVATE BlazeCapture ${PKG_PipeWire_LIBRARY_DIRS} X11 GLU GL pipewire-0.3 xcb xcb-image Xext xcb-shm yuv xcb-randr SQLiteCpp sqlite3 BlazeFS)
 
 set_property(TARGET BlazeCaptureApp PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})

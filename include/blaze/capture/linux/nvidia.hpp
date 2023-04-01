@@ -80,6 +80,9 @@ namespace blaze::internal {
                 onNewFrame(std::function<void(void *, std::uint64_t)> callback);
             void setBufferFormat(blaze::format type);
 
+            static bool isAvailable();
+            static std::uint32_t value();
+
         protected:
             NVENCSTATUS validateEncodeGUID(void *encoder, GUID encodeGuid);
     };

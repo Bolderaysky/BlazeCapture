@@ -230,6 +230,7 @@ namespace blaze::internal {
         createCaptureParams.bWithCursor = NVFBC_TRUE;
         createCaptureParams.frameSize = frameSize;
         createCaptureParams.eTrackingType = NVFBC_TRACKING_DEFAULT;
+        createCaptureParams.bAllowDirectCapture = NVFBC_TRUE;
         createCaptureParams.bDisableAutoModesetRecovery = NVFBC_FALSE;
 
         fbcStatus = pFn.nvFBCCreateCaptureSession(fbcHandle,
@@ -494,7 +495,7 @@ namespace blaze::internal {
 
     void NvfbcCapture::clear() {
 
-        /*NVFBC_DESTROY_HANDLE_PARAMS destroyHandleParams;
+        NVFBC_DESTROY_HANDLE_PARAMS destroyHandleParams;
         NVFBC_DESTROY_CAPTURE_SESSION_PARAMS destroyCaptureParams;
 
         memset(&encParams, 0, sizeof(encParams));
@@ -539,7 +540,7 @@ namespace blaze::internal {
             errHandler(pFn.nvFBCGetLastErrorStr(fbcHandle), -1);
 
 
-         // Destroy session handle, tear down more resources.
+        // Destroy session handle, tear down more resources.
 
         memset(&destroyHandleParams, 0, sizeof(destroyHandleParams));
 
@@ -548,7 +549,6 @@ namespace blaze::internal {
         fbcStatus = pFn.nvFBCDestroyHandle(fbcHandle, &destroyHandleParams);
         if (fbcStatus != NVFBC_SUCCESS)
             errHandler(pFn.nvFBCGetLastErrorStr(fbcHandle), -1);
-        */
     }
 
     void NvfbcCapture::setBufferFormat(blaze::format type) {
@@ -616,6 +616,11 @@ namespace blaze::internal {
         for (const auto &[key, val] : screens) vec.emplace_back(key);
 
         return vec;
+    }
+
+    std::uint32_t NvfbcCapture::value() {
+
+        return +5'000;
     }
 
 }; // namespace blaze::internal

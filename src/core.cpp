@@ -12,6 +12,8 @@
 
 #include "SQLiteCpp/SQLiteCpp.h"
 
+#include "blaze/capture/misc.hpp"
+
 namespace blaze {
 
     void BlazeCapture::setShortcuts() {
@@ -39,9 +41,12 @@ namespace blaze {
         });
     }
 
-    BlazeCapture::BlazeCapture() {
+    BlazeCapture::BlazeCapture() : vfs(512u) {
 
         if (!glfwInit()) errHandler("[glfw] Cannot init glfw", -1);
+
+        if (!vfs.readArchive("assets.asar"))
+            errHandler("[blaze] Cannot read assets", -1);
 
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
@@ -69,7 +74,7 @@ namespace blaze {
         });
 
         audioCapturer.onNewDesktopData([&](float* buffer, std::uint64_t size) {
-            if (!isMicCaptured) return;
+            if (!isDesktopSoundCaptured) return;
             fwrite(buffer, size, sizeof(float), audioFile);
         });
 
@@ -126,6 +131,8 @@ namespace blaze {
 
         videoCapturer.load();
 
+        videoCapturer.selectScreen(videoCapturer.listScreen()[1]);
+
         audioCapturer.load();
 
         window = glfwCreateWindow(mode->width, mode->height, "BlazeCapture",
@@ -148,20 +155,35 @@ namespace blaze {
         // Setup Dear ImGui style
         ImGui::StyleColorsDark();
 
-        const auto RedhatDisplayLarge = io.Fonts->AddFontFromFileTTF(
-            "RedHatDisplay-Regular.ttf", 24u);
-        const auto RedhatDisplaySmall = io.Fonts->AddFontFromFileTTF(
-            "RedHatDisplay-Regular.ttf", 18u);
+        // double free or corruption (!prev) for now, use files instead
+
+        // auto redhatFontTTF = vfs.read<std::string>(
+        //     "fonts/RedHatDisplay-Regular.ttf");
+
+        // const auto& RedhatDisplayLarge = io.Fonts->AddFontFromMemoryTTF(
+        //     static_cast<void*>(redhatFontTTF.data()), 24u, 24u);
+        // const auto& RedhatDisplaySmall = io.Fonts->AddFontFromMemoryTTF(
+        //     static_cast<void*>(redhatFontTTF.data()), 18u, 18u);
+
+        const auto& RedhatDisplayLarge = io.Fonts->AddFontFromFileTTF(
+            "../assets/fonts/RedHatDisplay-Regular.ttf", 24.0f);
+        const auto& RedhatDisplaySmall = io.Fonts->AddFontFromFileTTF(
+            "../assets/fonts/RedHatDisplay-Regular.ttf", 18.0f);
+
 
         // Setup Platform/Renderer backends
         ImGui_ImplGlfw_InitForOpenGL(window, true);
         ImGui_ImplOpenGL3_Init("#version 130");
 
         // Our state
-        ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.00f, 0.50f);
+        std::int32_t backgroundAlpha = 50;
+        ImVec4 clearColor = ImVec4(0.0f, 0.0f, 0.00f, backgroundAlpha / 100.0f);
 
         bool isRecorded = false;
         bool areSettingsOpened = false;
+        bool isThemeDark = true;
+        bool isReplayEnabled = false;
+        bool overlayOpened = true;
 
         BS::thread_pool_light thread_pool(4u);
 
@@ -174,6 +196,8 @@ namespace blaze {
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
+            if (!overlayOpened) goto end;
+
             {
 
                 ImGui::SetNextWindowPos(
@@ -185,7 +209,7 @@ namespace blaze {
 
                 ImGui::SetNextWindowBgAlpha(1.0f);
 
-                ImGui::Begin("BlazeCapture", nullptr,
+                ImGui::Begin("BlazeCapture", &overlayOpened,
                              ImGuiWindowFlags_NoMove |
                                  ImGuiWindowFlags_NoResize |
                                  ImGuiWindowFlags_NoCollapse);
@@ -222,14 +246,21 @@ namespace blaze {
                                 RECORD_STOP_TIME - RECORD_START_TIME)
                                 .count());
 
-                        thread_pool.push_task([&]() {
-                            videoCapturer.stopCapture();
+                        videoCapturer.stopCapture();
 
-                            if (isMicCaptured || isDesktopSoundCaptured) {
+                        if (isMicCaptured || isDesktopSoundCaptured) {
 
-                                audioCapturer.stopCapture();
-                            }
-                        });
+                            audioCapturer.stopCapture();
+                        }
+
+                        // thread_pool.push_task([&]() {
+                        //     videoCapturer.stopCapture();
+
+                        //     if (isMicCaptured || isDesktopSoundCaptured) {
+
+                        //         audioCapturer.stopCapture();
+                        //     }
+                        // });
                     }
 
                     ImGui::SetItemDefaultFocus();
@@ -239,6 +270,11 @@ namespace blaze {
 
                 ImGui::Checkbox("Capture desktop sound",
                                 &isDesktopSoundCaptured);
+
+                ImGui::Checkbox("Enable replay", &isReplayEnabled);
+
+                ImGui::SetCursorPos(ImVec2(io.DisplaySize.x * 0.167f,
+                                           io.DisplaySize.y * 0.1721f));
 
                 if (ImGui::Button("Settings")) {
 
@@ -266,43 +302,54 @@ namespace blaze {
                                      ImGuiWindowFlags_NoResize |
                                      ImGuiWindowFlags_NoCollapse);
 
+                    if (ImGui::Button("Switch theme")) {
+
+                        if (isThemeDark) {
+
+                            ImGui::StyleColorsLight();
+
+                        } else ImGui::StyleColorsDark();
+
+                        isThemeDark = !isThemeDark;
+                    }
+
+                    ImGui::Text("Background opacity:");
+                    ImGui::SliderInt("##", &backgroundAlpha, 0u, 100u, "%d%%");
+
+                    ImGui::SetCursorPosY(io.DisplaySize.y * 0.167f);
+
                     ImGui::PushFont(RedhatDisplaySmall);
 
                     ImGui::Text("Selected backend: Nvfbc");
-                    ImGui::Text("OS: Linux");
+                    ImGui::Text("OS: %s", OSName());
 
                     ImGui::PopFont();
 
                     ImGui::End();
                 }
-
-                // if (isDesktopSoundCaptured != isDesktopSoundCheck) {
-
-                //     audioCapturer.setDesktopSoundCapturing(
-                //         isDesktopSoundCaptured);
-                //     isDesktopSoundCheck = isDesktopSoundCaptured;
-                // }
-
-                // if (isMicCaptured != isMicCapturedCheck) {
-
-                //     audioCapturer.setMicCapturing(isMicCaptured);
-                //     isMicCapturedCheck = isMicCaptured;
-                // }
             }
 
             // Rendering
-            ImGui::Render();
-            int display_w, display_h;
-            glfwGetFramebufferSize(window, &display_w, &display_h);
-            glViewport(0, 0, display_w, display_h);
-            glClearColor(clear_color.x * clear_color.w,
-                         clear_color.y * clear_color.w,
-                         clear_color.z * clear_color.w, clear_color.w);
-            glClear(GL_COLOR_BUFFER_BIT);
-            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-            glfwSwapBuffers(window);
+            {
+
+                clearColor.w = backgroundAlpha / 100.0f;
+
+                ImGui::Render();
+                int display_w, display_h;
+                glfwGetFramebufferSize(window, &display_w, &display_h);
+                glViewport(0, 0, display_w, display_h);
+                glClearColor(clearColor.x * clearColor.w,
+                             clearColor.y * clearColor.w,
+                             clearColor.z * clearColor.w, clearColor.w);
+                glClear(GL_COLOR_BUFFER_BIT);
+                ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+                glfwSwapBuffers(window);
+            }
         }
+
+    end:
 
         const auto& APP_END_TIME = std::chrono::system_clock::now();
 

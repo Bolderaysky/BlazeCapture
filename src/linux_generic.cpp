@@ -256,7 +256,7 @@ namespace blaze::internal {
             free(xcb_shm_get_image_reply(conn, cookie, nullptr));
 
             while (!isFrameHandled.load()) {
-                std::this_thread::sleep_for(std::chrono::microseconds(500));
+                std::this_thread::sleep_for(std::chrono::microseconds(750));
             }
 
             libyuv::ARGBToI420(buffer, stride_argb, yuv420buffer,
@@ -300,6 +300,24 @@ namespace blaze::internal {
     void X11Capture::stopCapture() {
 
         isScreenCaptured.store(false);
+    }
+
+    bool X11Capture::isAvailable() {
+
+        auto conn = xcb_connect(nullptr, nullptr);
+
+        bool res = true;
+
+        if (xcb_connection_has_error(conn)) res = false;
+
+        xcb_disconnect(conn);
+
+        return res;
+    }
+
+    std::uint32_t X11Capture::value() {
+
+        return +1'000;
     }
 
 

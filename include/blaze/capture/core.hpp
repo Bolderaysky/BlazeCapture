@@ -11,6 +11,8 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 
+#include "blaze/BlazeFS/BlazeFS.hpp"
+
 #include "blaze/capture/video.hpp"
 #include "blaze/capture/audio.hpp"
 
@@ -51,6 +53,8 @@ namespace blaze {
 
             std::unique_ptr<SQLite::Database> db;
 
+            blaze::BlazeFS vfs;
+
         public:
             BlazeCapture();
             ~BlazeCapture();
@@ -62,6 +66,7 @@ namespace blaze {
             void LOG(LOG_STATUS status, const char* msg, std::int32_t code = 0);
             void HISTORY(ACTION action, std::uint64_t s);
             void setShortcuts();
+            void loadAssets();
     };
 
 }; // namespace blaze
